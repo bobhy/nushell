@@ -102,6 +102,7 @@ impl Command for For {
                         } else {
                             x
                         },
+                        None,
                     );
 
                     //let block = engine_state.get_block(block_id);
@@ -148,6 +149,7 @@ impl Command for For {
                         } else {
                             x
                         },
+                        None,
                     );
 
                     //let block = engine_state.get_block(block_id);
@@ -180,7 +182,7 @@ impl Command for For {
                 }
             }
             x => {
-                stack.add_var(var_id, x);
+                stack.add_var(var_id, x, None);
 
                 eval_block(
                     &engine_state,

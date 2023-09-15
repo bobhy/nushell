@@ -81,7 +81,7 @@ a variable. On the other hand, the "row condition" syntax is not supported."#
 
                     if let Some(var) = block.signature.get_positional(0) {
                         if let Some(var_id) = &var.var_id {
-                            stack.add_var(*var_id, x.clone());
+                            stack.add_var(*var_id, x.clone(), None);
                         }
                     }
 
@@ -125,7 +125,7 @@ a variable. On the other hand, the "row condition" syntax is not supported."#
 
                     if let Some(var) = block.signature.get_positional(0) {
                         if let Some(var_id) = &var.var_id {
-                            stack.add_var(*var_id, x.clone());
+                            stack.add_var(*var_id, x.clone(), None);
                         }
                     }
 
@@ -160,7 +160,7 @@ a variable. On the other hand, the "row condition" syntax is not supported."#
 
                 if let Some(var) = block.signature.get_positional(0) {
                     if let Some(var_id) = &var.var_id {
-                        stack.add_var(*var_id, x.clone());
+                        stack.add_var(*var_id, x.clone(), None);
                     }
                 }
                 Ok(match eval_block(

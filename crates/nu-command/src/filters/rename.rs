@@ -173,7 +173,7 @@ fn rename(
 
                                 if let Some(var) = block.signature.get_positional(0) {
                                     if let Some(var_id) = &var.var_id {
-                                        stack.add_var(*var_id, Value::string(c.clone(), span))
+                                        stack.add_var(*var_id, Value::string(c.clone(), span), None)
                                     }
                                 }
                                 let eval_result = eval_block_with_early_return(

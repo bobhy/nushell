@@ -55,11 +55,11 @@ pub fn eval_call(
 
             if let Some(arg) = call.positional_nth(param_idx) {
                 let result = eval_expression(engine_state, caller_stack, arg)?;
-                callee_stack.add_var(var_id, result);
+                callee_stack.add_var(var_id, result, Some(arg));
             } else if let Some(value) = &param.default_value {
-                callee_stack.add_var(var_id, value.to_owned());
+                callee_stack.add_var(var_id, value.to_owned(), None); //todo: try to get span and type of default declaration
             } else {
-                callee_stack.add_var(var_id, Value::nothing(call.head));
+                callee_stack.add_var(var_id, Value::nothing(call.head), None);
             }
         }
 
@@ -85,6 +85,7 @@ pub fn eval_call(
                     .var_id
                     .expect("Internal error: rest positional parameter lacks var_id"),
                 Value::list(rest_items, span),
+                None, //todo: improve metadata for rest, but handle invocation omitting rest args
             )
         }
 
@@ -97,11 +98,12 @@ pub fn eval_call(
                             if let Some(arg) = &call_named.2 {
                                 let result = eval_expression(engine_state, caller_stack, arg)?;
 
-                                callee_stack.add_var(var_id, result);
+                                callee_stack.add_var(var_id, result, Some(arg));
                             } else if let Some(value) = &named.default_value {
-                                callee_stack.add_var(var_id, value.to_owned());
+                                callee_stack.add_var(var_id, value.to_owned(), None);
+                            //todo: get type and span of default declaration
                             } else {
-                                callee_stack.add_var(var_id, Value::bool(true, call.head))
+                                callee_stack.add_var(var_id, Value::bool(true, call.head), None)
                             }
                             found = true;
                         }
@@ -109,11 +111,12 @@ pub fn eval_call(
                         if let Some(arg) = &call_named.2 {
                             let result = eval_expression(engine_state, caller_stack, arg)?;
 
-                            callee_stack.add_var(var_id, result);
+                            callee_stack.add_var(var_id, result, Some(arg));
                         } else if let Some(value) = &named.default_value {
-                            callee_stack.add_var(var_id, value.to_owned());
+                            callee_stack.add_var(var_id, value.to_owned(), None);
+                        //todo: get type and span of default declaration
                         } else {
-                            callee_stack.add_var(var_id, Value::bool(true, call.head))
+                            callee_stack.add_var(var_id, Value::bool(true, call.head), None)
                         }
                         found = true;
                     }
@@ -121,11 +124,11 @@ pub fn eval_call(
 
                 if !found {
                     if named.arg.is_none() {
-                        callee_stack.add_var(var_id, Value::bool(false, call.head))
+                        callee_stack.add_var(var_id, Value::bool(false, call.head), None)
                     } else if let Some(value) = named.default_value {
-                        callee_stack.add_var(var_id, value);
+                        callee_stack.add_var(var_id, value, None);
                     } else {
-                        callee_stack.add_var(var_id, Value::nothing(call.head))
+                        callee_stack.add_var(var_id, Value::nothing(call.head), None)
                     }
                 }
             }
@@ -448,7 +451,7 @@ pub fn eval_expression(
                         Expr::Var(var_id) | Expr::VarDecl(var_id) => {
                             let var_info = engine_state.get_var(*var_id);
                             if var_info.mutable {
-                                stack.add_var(*var_id, rhs);
+                                stack.add_var(*var_id, rhs, Some(lhs));
                                 Ok(Value::nothing(lhs.span))
                             } else {
                                 Err(ShellError::AssignmentRequiresMutableVar { lhs_span: lhs.span })
@@ -499,7 +502,7 @@ pub fn eval_expression(
                                                 }
                                             }
                                         } else {
-                                            stack.add_var(*var_id, lhs);
+                                            stack.add_var(*var_id, lhs, Some(&cell_path.head));
                                         }
                                         Ok(Value::nothing(cell_path.head.span))
                                     } else {
@@ -530,7 +533,7 @@ pub fn eval_expression(
             let block = engine_state.get_block(*block_id);
 
             for var_id in &block.captures {
-                captures.insert(*var_id, stack.get_var(*var_id, expr.span)?);
+                captures.insert(*var_id, stack.get_var_info(*var_id, expr.span)?);
             }
             Ok(Value::closure(*block_id, captures, expr.span))
         }

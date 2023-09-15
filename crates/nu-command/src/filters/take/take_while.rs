@@ -99,7 +99,7 @@ impl Command for TakeWhile {
             .into_iter_strict(span)?
             .take_while(move |value| {
                 if let Some(var_id) = var_id {
-                    stack.add_var(var_id, value.clone());
+                    stack.add_var(var_id, value.clone(), None);
                 }
 
                 eval_block(

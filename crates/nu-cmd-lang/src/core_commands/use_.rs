@@ -73,7 +73,7 @@ This command is a parser keyword. For details, check:
                 let var = engine_state.get_var(*var_id);
 
                 if let Some(constval) = &var.const_val {
-                    caller_stack.add_var(*var_id, constval.clone());
+                    caller_stack.add_var(*var_id, constval.clone(), None);
                 } else {
                     return Err(ShellError::NushellFailedSpanned {
                         msg: "Missing Constant".to_string(),

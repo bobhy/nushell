@@ -104,7 +104,7 @@ fn handle_catch(
         // Put the error value in the positional closure var
         if let Some(var) = catch_block.signature.get_positional(0) {
             if let Some(var_id) = &var.var_id {
-                stack.add_var(*var_id, err_value.clone());
+                stack.add_var(*var_id, err_value.clone(), None);
             }
         }
 

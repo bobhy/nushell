@@ -78,7 +78,11 @@ impl Command for Do {
 
         for param in params.iter().zip(&rest) {
             if let Some(var_id) = param.0.var_id {
-                stack.add_var(var_id, param.1.clone())
+                stack.add_var(
+                    var_id,
+                    param.1.clone(),
+                    None, //todo: really, figure out how to get the span of the expression for the rest args
+                )
             }
         }
 
@@ -101,6 +105,7 @@ impl Command for Do {
                         .var_id
                         .expect("Internal error: rest positional parameter lacks var_id"),
                     Value::list(rest_items, span),
+                    None,
                 )
             }
         }

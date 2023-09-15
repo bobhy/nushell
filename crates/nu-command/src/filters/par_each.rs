@@ -160,7 +160,7 @@ impl Command for ParEach {
 
                             if let Some(var) = block.signature.get_positional(0) {
                                 if let Some(var_id) = &var.var_id {
-                                    stack.add_var(*var_id, x.clone());
+                                    stack.add_var(*var_id, x.clone(), None); //todo: how to get span for argument to closure?
                                 }
                             }
 
@@ -200,7 +200,7 @@ impl Command for ParEach {
 
                             if let Some(var) = block.signature.get_positional(0) {
                                 if let Some(var_id) = &var.var_id {
-                                    stack.add_var(*var_id, x.clone());
+                                    stack.add_var(*var_id, x.clone(), None); //todo: how to get span for argument to closure?
                                 }
                             }
 
@@ -239,7 +239,7 @@ impl Command for ParEach {
 
                         if let Some(var) = block.signature.get_positional(0) {
                             if let Some(var_id) = &var.var_id {
-                                stack.add_var(*var_id, x.clone());
+                                stack.add_var(*var_id, x.clone(), None); //todo: how to get span for argument to closure?
                             }
                         }
 
@@ -287,7 +287,7 @@ impl Command for ParEach {
 
                         if let Some(var) = block.signature.get_positional(0) {
                             if let Some(var_id) = &var.var_id {
-                                stack.add_var(*var_id, x.clone());
+                                stack.add_var(*var_id, x.clone(), None); //todo: how to get span for argument to closure?
                             }
                         }
 
@@ -316,7 +316,7 @@ impl Command for ParEach {
 
                 if let Some(var) = block.signature.get_positional(0) {
                     if let Some(var_id) = &var.var_id {
-                        stack.add_var(*var_id, x.clone());
+                        stack.add_var(*var_id, x.clone(), None); //todo: how to get span for argument to closure?
                     }
                 }
 

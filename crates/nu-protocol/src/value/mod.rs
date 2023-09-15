@@ -9,7 +9,7 @@ mod unit;
 
 use crate::ast::{Bits, Boolean, CellPath, Comparison, MatchPattern, PathMember};
 use crate::ast::{Math, Operator};
-use crate::engine::EngineState;
+use crate::engine::{EngineState, VarInfo};
 use crate::ShellError;
 use crate::{did_you_mean, BlockId, Config, Span, Spanned, Type, VarId};
 
@@ -110,7 +110,7 @@ pub enum Value {
     },
     Closure {
         val: BlockId,
-        captures: HashMap<VarId, Value>,
+        captures: HashMap<VarId, VarInfo>,
         // note: spans are being refactored out of Value
         // please use .span() instead of matching this span value
         internal_span: Span,
@@ -453,7 +453,7 @@ impl Value {
         }
     }
 
-    pub fn as_closure(&self) -> Result<(BlockId, &HashMap<VarId, Value>), ShellError> {
+    pub fn as_closure(&self) -> Result<(BlockId, &HashMap<VarId, VarInfo>), ShellError> {
         match self {
             Value::Closure { val, captures, .. } => Ok((*val, captures)),
             x => Err(ShellError::CantConvert {
@@ -1836,7 +1836,7 @@ impl Value {
         }
     }
 
-    pub fn closure(val: BlockId, captures: HashMap<VarId, Value>, span: Span) -> Value {
+    pub fn closure(val: BlockId, captures: HashMap<VarId, VarInfo>, span: Span) -> Value {
         Value::Closure {
             val,
             captures,
@@ -1961,7 +1961,7 @@ impl Value {
 
     /// Note: Only use this for test data, *not* live data, as it will point into unknown source
     /// when used in errors.
-    pub fn test_closure(val: BlockId, captures: HashMap<VarId, Value>) -> Value {
+    pub fn test_closure(val: BlockId, captures: HashMap<VarId, VarInfo>) -> Value {
         Value::closure(val, captures, Span::test_data())
     }
 

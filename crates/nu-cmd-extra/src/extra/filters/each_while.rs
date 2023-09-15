@@ -103,7 +103,7 @@ impl Command for EachWhile {
 
                     if let Some(var) = block.signature.get_positional(0) {
                         if let Some(var_id) = &var.var_id {
-                            stack.add_var(*var_id, x.clone());
+                            stack.add_var(*var_id, x.clone(), None);
                         }
                     }
 
@@ -147,7 +147,7 @@ impl Command for EachWhile {
 
                     if let Some(var) = block.signature.get_positional(0) {
                         if let Some(var_id) = &var.var_id {
-                            stack.add_var(*var_id, x.clone());
+                            stack.add_var(*var_id, x.clone(), None);
                         }
                     }
 
@@ -177,7 +177,7 @@ impl Command for EachWhile {
             PipelineData::Value(x, ..) => {
                 if let Some(var) = block.signature.get_positional(0) {
                     if let Some(var_id) = &var.var_id {
-                        stack.add_var(*var_id, x.clone());
+                        stack.add_var(*var_id, x.clone(), None);
                     }
                 }
 

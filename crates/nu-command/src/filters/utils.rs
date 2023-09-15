@@ -45,7 +45,7 @@ pub fn boolean_fold(
         stack.with_env(&orig_env_vars, &orig_env_hidden);
 
         if let Some(var_id) = var_id {
-            stack.add_var(var_id, value.clone());
+            stack.add_var(var_id, value.clone(), None);
         }
 
         let eval = eval_block(

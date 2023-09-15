@@ -49,7 +49,7 @@ impl Command for Match {
                 if match_.0.match_value(&value, &mut match_variables) {
                     // This case does match, go ahead and return the evaluated expression
                     for match_variable in match_variables {
-                        stack.add_var(match_variable.0, match_variable.1);
+                        stack.add_var(match_variable.0, match_variable.1, None);
                     }
 
                     let guard_matches = if let Some(guard) = &match_.0.guard {

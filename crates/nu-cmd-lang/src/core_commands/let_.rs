@@ -69,7 +69,14 @@ impl Command for Let {
             call.redirect_stdout,
             call.redirect_stderr,
         )?;
-        stack.add_var(var_id, pipeline_data.into_value(call.head));
+        stack.add_var(
+            var_id,
+            pipeline_data.into_value(
+                //todo: could be call.span()
+                call.head,
+            ),
+            None, //todo: get metadata if rhs is just a var
+        );
         Ok(PipelineData::empty())
     }
 

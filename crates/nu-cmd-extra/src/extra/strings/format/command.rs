@@ -49,7 +49,7 @@ impl Command for Format {
         let input_val = input.into_value(call.head);
         // add '$it' variable to support format like this: $it.column1.column2.
         let it_id = working_set.add_variable(b"$it".to_vec(), call.head, Type::Any, false);
-        stack.add_var(it_id, input_val.clone());
+        stack.add_var(it_id, input_val.clone(), None);
 
         match specified_pattern {
             Err(e) => Err(e),

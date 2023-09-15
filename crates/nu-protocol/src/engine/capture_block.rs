@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
-use crate::{BlockId, Value, VarId};
+use crate::{engine::VarInfo, BlockId, VarId};
 
 #[derive(Clone, Debug)]
 pub struct Closure {
     pub block_id: BlockId,
-    pub captures: HashMap<VarId, Value>,
+    pub captures: HashMap<VarId, VarInfo>,
 }
 
 #[derive(Clone, Debug)]

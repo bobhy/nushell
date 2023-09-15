@@ -72,7 +72,7 @@ impl Command for Mut {
 
         //println!("Adding: {:?} to {}", rhs, var_id);
 
-        stack.add_var(var_id, pipeline_data.into_value(call.head));
+        stack.add_var(var_id, pipeline_data.into_value(call.head), None);
         Ok(PipelineData::empty())
     }
 

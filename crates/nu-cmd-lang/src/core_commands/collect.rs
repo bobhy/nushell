@@ -52,7 +52,7 @@ impl Command for Collect {
         let mut saved_positional = None;
         if let Some(var) = block.signature.get_positional(0) {
             if let Some(var_id) = &var.var_id {
-                stack_captures.add_var(*var_id, input.clone());
+                stack_captures.add_var(*var_id, input.clone(), None);
                 saved_positional = Some(*var_id);
             }
         }

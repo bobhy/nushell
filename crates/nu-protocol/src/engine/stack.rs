@@ -1,8 +1,12 @@
+use serde::Deserialize;
+use serde::Serialize;
+
 use std::collections::{HashMap, HashSet};
 
+use crate::ast::{Expr, Expression};
 use crate::engine::EngineState;
 use crate::engine::DEFAULT_OVERLAY_NAME;
-use crate::{ShellError, Span, Value, VarId};
+use crate::{ShellError, Span, Value, VarId, Variable};
 
 /// Environment variables per overlay
 pub type EnvVars = HashMap<String, HashMap<String, Value>>;
@@ -45,6 +49,46 @@ impl ProfilingConfig {
     }
 }
 
+// runtime information about a VarId
+// now including information about the expression the variable came from.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VarInfo {
+    pub var_id: VarId,
+    pub value: Value,
+    pub expr: Option<Expr>, //
+    pub span: Option<Span>,
+}
+
+impl VarInfo {
+    pub fn new(var_id: VarId, value: Value, expression: Option<&Expression>) -> Self {
+        if let Some(e) = expression {
+            VarInfo {
+                var_id,
+                value,
+                expr: Some(e.expr.clone()),
+                span: Some(e.span),
+            }
+        } else {
+            VarInfo {
+                var_id,
+                value,
+                expr: None,
+                span: None,
+            }
+        }
+    }
+    pub fn new_from_const(var_id: VarId, const_val: Value, variable: &Variable) -> Self {
+        VarInfo {
+            var_id,
+            value: const_val,
+            expr: Some(Expr::Bool(false)), // this is an egregious lie, but may not cause any confusion!
+            // So far, the only use is to compare to Expr::Var to stop coercion for metadata
+            /// and the declaration_span is presumably correct.
+            span: Some(variable.declaration_span),
+        }
+    }
+}
+
 /// A runtime value stack used during evaluation
 ///
 /// A note on implementation:
@@ -65,7 +109,7 @@ impl ProfilingConfig {
 #[derive(Debug, Clone)]
 pub struct Stack {
     /// Variables
-    pub vars: Vec<(VarId, Value)>,
+    pub vars: Vec<VarInfo>,
     /// Environment variables arranged as a stack to be able to recover values from parent scopes
     pub env_vars: Vec<EnvVars>,
     /// Tells which environment variables from engine state are hidden, per overlay.
@@ -104,9 +148,9 @@ impl Stack {
     }
 
     pub fn get_var(&self, var_id: VarId, span: Span) -> Result<Value, ShellError> {
-        for (id, val) in &self.vars {
-            if var_id == *id {
-                return Ok(val.clone().with_span(span));
+        for var_info in &self.vars {
+            if var_id == var_info.var_id {
+                return Ok(var_info.value.clone().with_span(span));
             }
         }
 
@@ -114,29 +158,39 @@ impl Stack {
     }
 
     pub fn get_var_with_origin(&self, var_id: VarId, span: Span) -> Result<Value, ShellError> {
-        for (id, val) in &self.vars {
-            if var_id == *id {
-                return Ok(val.clone());
+        for var_info in &self.vars {
+            if var_id == var_info.var_id {
+                return Ok(var_info.value.clone());
             }
         }
 
         Err(ShellError::VariableNotFoundAtRuntime { span })
     }
 
-    pub fn add_var(&mut self, var_id: VarId, value: Value) {
+    pub fn get_var_info(&self, var_id: VarId, span: Span) -> Result<VarInfo, ShellError> {
+        for var_info in &self.vars {
+            if var_id == var_info.var_id {
+                return Ok(var_info.clone());
+            }
+        }
+
+        Err(ShellError::VariableNotFoundAtRuntime { span })
+    }
+
+    pub fn add_var(&mut self, var_id: VarId, value: Value, expr: Option<&Expression>) {
         //self.vars.insert(var_id, value);
-        for (id, val) in &mut self.vars {
-            if *id == var_id {
-                *val = value;
+        for var_info in &mut self.vars {
+            if var_info.var_id == var_id {
+                *var_info = VarInfo::new(var_id, value, expr);
                 return;
             }
         }
-        self.vars.push((var_id, value));
+        self.vars.push(VarInfo::new(var_id, value, expr));
     }
 
     pub fn remove_var(&mut self, var_id: VarId) {
-        for (idx, (id, _)) in self.vars.iter().enumerate() {
-            if *id == var_id {
+        for (idx, var_info) in self.vars.iter().enumerate() {
+            if var_info.var_id == var_id {
                 self.vars.remove(idx);
                 return;
             }
@@ -178,15 +232,15 @@ impl Stack {
             })
     }
 
-    pub fn captures_to_stack(&self, captures: &HashMap<VarId, Value>) -> Stack {
+    pub fn captures_to_stack(&self, captures: &HashMap<VarId, VarInfo>) -> Stack {
         // FIXME: this is probably slow
         let mut env_vars = self.env_vars.clone();
         env_vars.push(HashMap::new());
 
         // FIXME make this more efficient
-        let mut vars = vec![];
-        for (id, val) in captures {
-            vars.push((*id, val.clone()));
+        let mut vars: Vec<VarInfo> = vec![];
+        for var_info in captures.values() {
+            vars.push(var_info.clone());
         }
 
         Stack {
@@ -207,10 +261,17 @@ impl Stack {
         for capture in captures {
             // Note: this assumes we have calculated captures correctly and that commands
             // that take in a var decl will manually set this into scope when running the blocks
-            if let Ok(value) = self.get_var(*capture, fake_span) {
-                vars.push((*capture, value));
-            } else if let Some(const_val) = &engine_state.get_var(*capture).const_val {
-                vars.push((*capture, const_val.clone()));
+            if let Ok(var_info) = self.get_var_info(*capture, fake_span) {
+                vars.push(var_info.clone());
+            } else {
+                let const_var = engine_state.get_var(*capture);
+                if let Some(const_val) = &const_var.const_val {
+                    vars.push(VarInfo::new_from_const(
+                        *capture,
+                        const_val.clone(),
+                        const_var,
+                    ));
+                }
             }
         }
 

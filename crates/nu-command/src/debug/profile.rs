@@ -66,7 +66,7 @@ Current known limitations are:
 
         if let Some(var) = block.signature.get_positional(0) {
             if let Some(var_id) = &var.var_id {
-                stack.add_var(*var_id, input_val.clone());
+                stack.add_var(*var_id, input_val.clone(), None); //todo: get span of expression this value came from
             }
         }
 

@@ -184,7 +184,12 @@ impl Command for Watch {
 
                     if let Some(position) = block.signature.get_positional(0) {
                         if let Some(position_id) = &position.var_id {
-                            stack.add_var(*position_id, Value::string(operation, call.span()));
+                            stack.add_var(
+                                *position_id,
+                                Value::string(operation, call.span()),
+                                None,
+                                //todo: get span of expression this value came from
+                            );
                         }
                     }
 
@@ -193,6 +198,7 @@ impl Command for Watch {
                             stack.add_var(
                                 *position_id,
                                 Value::string(path.to_string_lossy(), call.span()),
+                                None, //todo: get span of expression this value came from
                             );
                         }
                     }
@@ -205,6 +211,7 @@ impl Command for Watch {
                                     new_path.unwrap_or_else(|| "".into()).to_string_lossy(),
                                     call.span(),
                                 ),
+                                None, //todo: get span of expression this value came from
                             );
                         }
                     }

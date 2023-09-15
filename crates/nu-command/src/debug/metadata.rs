@@ -54,6 +54,8 @@ impl Command for Metadata {
                         } => {
                             let origin = stack.get_var_with_origin(*var_id, *span)?;
 
+                            //todo: coerce value by following variable reference till value is no longer a variable
+
                             Ok(build_metadata_record(&origin, &input.metadata(), head)
                                 .into_pipeline_data())
                         }

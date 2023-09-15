@@ -65,13 +65,14 @@ impl Command for Items {
 
             if let Some(var) = block.signature.get_positional(0) {
                 if let Some(var_id) = &var.var_id {
-                    stack.add_var(*var_id, Value::string(keyval.0.clone(), span));
+                    stack.add_var(*var_id, Value::string(keyval.0.clone(), span), None);
+                    //todo: get span of expression this value came from
                 }
             }
 
             if let Some(var) = block.signature.get_positional(1) {
                 if let Some(var_id) = &var.var_id {
-                    stack.add_var(*var_id, keyval.1);
+                    stack.add_var(*var_id, keyval.1, None); //todo: get span of expression this value came from
                 }
             }
 

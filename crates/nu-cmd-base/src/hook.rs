@@ -131,7 +131,7 @@ pub fn eval_hook(
             let var_ids: Vec<VarId> = vars
                 .into_iter()
                 .map(|(var_id, val)| {
-                    stack.add_var(var_id, val);
+                    stack.add_var(var_id, val, None); //todo: get span of expression this value came from
                     var_id
                 })
                 .collect();
@@ -252,7 +252,7 @@ pub fn eval_hook(
                         let var_ids: Vec<VarId> = vars
                             .into_iter()
                             .map(|(var_id, val)| {
-                                stack.add_var(var_id, val);
+                                stack.add_var(var_id, val, None); //todo: get span of expression this value came from
                                 var_id
                             })
                             .collect();
@@ -340,7 +340,7 @@ fn run_hook_block(
     {
         if let Some(var_id) = var_id {
             if let Some(arg) = arguments.get(idx) {
-                callee_stack.add_var(*var_id, arg.1.clone())
+                callee_stack.add_var(*var_id, arg.1.clone(), None) //todo: get span of expression this value came from
             } else {
                 return Err(ShellError::IncompatibleParametersSingle {
                     msg: "This hook block has too many parameters".into(),

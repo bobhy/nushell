@@ -139,14 +139,14 @@ impl Command for Reduce {
             // Element argument
             if let Some(var) = block.signature.get_positional(0) {
                 if let Some(var_id) = &var.var_id {
-                    stack.add_var(*var_id, x);
+                    stack.add_var(*var_id, x, None); //todo: how to get span for argument to closure?
                 }
             }
 
             // Accumulator argument
             if let Some(var) = block.signature.get_positional(1) {
                 if let Some(var_id) = &var.var_id {
-                    stack.add_var(*var_id, acc);
+                    stack.add_var(*var_id, acc, None); //todo: how to get span for argument to closure?
                 }
             }
 

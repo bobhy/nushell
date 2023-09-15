@@ -81,6 +81,7 @@ impl NuCompleter {
                             .collect(),
                         Span::unknown(),
                     ),
+                    None,
                 );
             }
         }

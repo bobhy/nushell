@@ -58,7 +58,7 @@ impl Command for Const {
         };
 
         if let Some(constval) = &engine_state.get_var(var_id).const_val {
-            stack.add_var(var_id, constval.clone());
+            stack.add_var(var_id, constval.clone(), None);
 
             Ok(PipelineData::empty())
         } else {

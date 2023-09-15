@@ -160,7 +160,7 @@ fn upsert(
 
                 if let Some(var) = block.signature.get_positional(0) {
                     if let Some(var_id) = &var.var_id {
-                        stack.add_var(*var_id, input.clone())
+                        stack.add_var(*var_id, input.clone(), None)
                     }
                 }
 
