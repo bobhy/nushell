@@ -66,8 +66,8 @@ impl Command for Let {
             stack,
             block,
             input,
-            call.redirect_stdout,
-            call.redirect_stderr,
+            true,
+            false,
         )?;
         stack.add_var(
             var_id,

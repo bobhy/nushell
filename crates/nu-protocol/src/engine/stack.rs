@@ -11,84 +11,6 @@ use crate::{ShellError, Span, Value, VarId, Variable};
 /// Environment variables per overlay
 pub type EnvVars = HashMap<String, HashMap<String, Value>>;
 
-#[derive(Debug, Clone)]
-pub struct ProfilingConfig {
-    pub max_depth: i64,
-    pub depth: i64,
-    pub collect_source: bool,
-    pub collect_values: bool,
-}
-
-impl ProfilingConfig {
-    pub fn new(max_depth: i64, collect_source: bool, collect_values: bool) -> Self {
-        ProfilingConfig {
-            max_depth,
-            depth: 0,
-            collect_source,
-            collect_values,
-        }
-    }
-
-    pub fn enter_block(&mut self) {
-        self.depth += 1;
-    }
-
-    pub fn leave_block(&mut self) {
-        self.depth -= 1;
-    }
-
-    pub fn should_debug(&self) -> bool {
-        self.depth <= self.max_depth
-    }
-
-    pub fn reset(&mut self) {
-        self.max_depth = 0;
-        self.depth = 0;
-        self.collect_source = false;
-        self.collect_values = false;
-    }
-}
-
-// runtime information about a VarId
-// now including information about the expression the variable came from.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct VarInfo {
-    pub var_id: VarId,
-    pub value: Value,
-    pub expr: Option<Expr>, //
-    pub span: Option<Span>,
-}
-
-impl VarInfo {
-    pub fn new(var_id: VarId, value: Value, expression: Option<&Expression>) -> Self {
-        if let Some(e) = expression {
-            VarInfo {
-                var_id,
-                value,
-                expr: Some(e.expr.clone()),
-                span: Some(e.span),
-            }
-        } else {
-            VarInfo {
-                var_id,
-                value,
-                expr: None,
-                span: None,
-            }
-        }
-    }
-    pub fn new_from_const(var_id: VarId, const_val: Value, variable: &Variable) -> Self {
-        VarInfo {
-            var_id,
-            value: const_val,
-            expr: Some(Expr::Bool(false)), // this is an egregious lie, but may not cause any confusion!
-            // So far, the only use is to compare to Expr::Var to stop coercion for metadata
-            /// and the declaration_span is presumably correct.
-            span: Some(variable.declaration_span),
-        }
-    }
-}
-
 /// A runtime value stack used during evaluation
 ///
 /// A note on implementation:
@@ -117,7 +39,6 @@ pub struct Stack {
     /// List of active overlays
     pub active_overlays: Vec<String>,
     pub recursion_count: Box<u64>,
-    pub profiling_config: ProfilingConfig,
 }
 
 impl Stack {
@@ -128,7 +49,6 @@ impl Stack {
             env_hidden: HashMap::new(),
             active_overlays: vec![DEFAULT_OVERLAY_NAME.to_string()],
             recursion_count: Box::new(0),
-            profiling_config: ProfilingConfig::new(0, false, false),
         }
     }
 
@@ -249,7 +169,6 @@ impl Stack {
             env_hidden: self.env_hidden.clone(),
             active_overlays: self.active_overlays.clone(),
             recursion_count: self.recursion_count.to_owned(),
-            profiling_config: self.profiling_config.clone(),
         }
     }
 
@@ -284,7 +203,6 @@ impl Stack {
             env_hidden: self.env_hidden.clone(),
             active_overlays: self.active_overlays.clone(),
             recursion_count: self.recursion_count.to_owned(),
-            profiling_config: self.profiling_config.clone(),
         }
     }
 
@@ -479,8 +397,8 @@ impl Stack {
         engine_state.env_vars.contains_key(name)
     }
 
-    pub fn is_overlay_active(&self, name: &String) -> bool {
-        self.active_overlays.contains(name)
+    pub fn is_overlay_active(&self, name: &str) -> bool {
+        self.active_overlays.iter().any(|n| n == name)
     }
 
     pub fn add_overlay(&mut self, name: String) {
@@ -488,7 +406,7 @@ impl Stack {
         self.active_overlays.push(name);
     }
 
-    pub fn remove_overlay(&mut self, name: &String) {
+    pub fn remove_overlay(&mut self, name: &str) {
         self.active_overlays.retain(|o| o != name);
     }
 }

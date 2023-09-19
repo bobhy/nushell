@@ -56,23 +56,31 @@ impl Command for Metadata {
 
                             //todo: coerce value by following variable reference till value is no longer a variable
 
-                            Ok(build_metadata_record(&origin, &input.metadata(), head)
+                            Ok(build_metadata_record(&origin, &input.metadata().as_deref(), head)
                                 .into_pipeline_data())
                         }
                         _ => {
                             let val: Value = call.req(engine_state, stack, 0)?;
-                            Ok(build_metadata_record(&val, &input.metadata(), head)
-                                .into_pipeline_data())
+                            Ok(
+                                build_metadata_record(&val, input.metadata().as_deref(), head)
+                                    .into_pipeline_data(),
+                            )
                         }
                     }
                 } else {
                     let val: Value = call.req(engine_state, stack, 0)?;
-                    Ok(build_metadata_record(&val, &input.metadata(), head).into_pipeline_data())
+                    Ok(
+                        build_metadata_record(&val, input.metadata().as_deref(), head)
+                            .into_pipeline_data(),
+                    )
                 }
             }
             Some(_) => {
                 let val: Value = call.req(engine_state, stack, 0)?;
-                Ok(build_metadata_record(&val, &input.metadata(), head).into_pipeline_data())
+                Ok(
+                    build_metadata_record(&val, input.metadata().as_deref(), head)
+                        .into_pipeline_data(),
+                )
             }
             None => {
                 let mut record = Record::new();
@@ -111,11 +119,7 @@ impl Command for Metadata {
     }
 }
 
-fn build_metadata_record(
-    arg: &Value,
-    metadata: &Option<Box<PipelineMetadata>>,
-    head: Span,
-) -> Value {
+fn build_metadata_record(arg: &Value, metadata: Option<&PipelineMetadata>, head: Span) -> Value {
     let mut record = Record::new();
 
     let span = arg.span();
@@ -130,7 +134,7 @@ fn build_metadata_record(
         ),
     );
 
-    if let Some(x) = metadata.as_deref() {
+    if let Some(x) = metadata {
         match x {
             PipelineMetadata {
                 data_source: DataSource::Ls,
