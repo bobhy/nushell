@@ -56,7 +56,7 @@ impl Command for Metadata {
 
                             //todo: coerce value by following variable reference till value is no longer a variable
 
-                            Ok(build_metadata_record(&origin, &input.metadata().as_deref(), head)
+                            Ok(build_metadata_record(&origin, input.metadata().as_deref(), head)
                                 .into_pipeline_data())
                         }
                         _ => {

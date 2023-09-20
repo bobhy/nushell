@@ -11,6 +11,46 @@ use crate::{ShellError, Span, Value, VarId, Variable};
 /// Environment variables per overlay
 pub type EnvVars = HashMap<String, HashMap<String, Value>>;
 
+// runtime information about a VarId
+// now including information about the expression the variable came from.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VarInfo {
+    pub var_id: VarId,
+    pub value: Value,
+    pub expr: Option<Expr>, //
+    pub span: Option<Span>,
+}
+
+impl VarInfo {
+    pub fn new(var_id: VarId, value: Value, expression: Option<&Expression>) -> Self {
+        if let Some(e) = expression {
+            VarInfo {
+                var_id,
+                value,
+                expr: Some(e.expr.clone()),
+                span: Some(e.span),
+            }
+        } else {
+            VarInfo {
+                var_id,
+                value,
+                expr: None,
+                span: None,
+            }
+        }
+    }
+    pub fn new_from_const(var_id: VarId, const_val: Value, variable: &Variable) -> Self {
+        VarInfo {
+            var_id,
+            value: const_val,
+            expr: Some(Expr::Bool(false)), // this is an egregious lie, but may not cause any confusion!
+            // So far, the only use is to compare to Expr::Var to stop coercion for metadata
+            /// and the declaration_span is presumably correct.
+            span: Some(variable.declaration_span),
+        }
+    }
+}
+
 /// A runtime value stack used during evaluation
 ///
 /// A note on implementation:
