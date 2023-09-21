@@ -1,5 +1,5 @@
-use nu_engine::CallExt;
-use nu_protocol::ast::{Call, Expression};
+use nu_engine::{eval_expression, CallExt};
+use nu_protocol::ast::{Call, Expr, Expression, FullCellPath};
 use nu_protocol::engine::{Command, EngineState, Stack};
 use nu_protocol::{
     Category, Example, PipelineData, ShellError, Signature, Span, SyntaxShape, Type, Value,
@@ -21,17 +21,12 @@ impl Command for ErrorGen {
             .required(
                 "blame",
                 SyntaxShape::Any,
-                "Variable or expression to highlight",
+                "Variable or expression whose span will be highlighted",
             )
             .required(
                 "text",
                 SyntaxShape::String,
-                "Explanatory text under highlight",
-            )
-            .switch(
-                "unspanned",
-                "remove the origin label from the error",
-                Some('u'),
+                "Explanatory (label) text under highlight",
             )
             .category(Category::Core)
     }
@@ -57,24 +52,23 @@ impl Command for ErrorGen {
             .positional_nth(1)
             .expect("2nd param is required in signature");
         let text: Value = call.req(engine_state, stack, 2)?;
-        let unspanned = call.has_flag("unspanned");
 
-        let throw_error = if unspanned { None } else { Some(span) };
-        Err(
-            make_error(&title, blame, &text, throw_error).unwrap_or_else(|| {
-                ShellError::GenericError(
-                    "Creating error value not supported.".into(),
-                    "unsupported error format".into(),
-                    Some(span),
-                    None,
-                    Vec::new(),
-                )
-            }),
-        )
+        let blame_span = blamable_span(engine_state, stack, blame);
+
+        Err(make_error(&title, blame_span, &text).unwrap_or_else(|| {
+            ShellError::GenericError(
+                "Creating error value not supported.".into(),
+                "unsupported error format".into(),
+                Some(span),
+                None,
+                Vec::new(),
+            )
+        }))
     }
 
     fn examples(&self) -> Vec<Example> {
         vec![
+            /* not supported yet 
             Example {
                 description: "Create a simple custom error",
                 example: r#"error make {msg: "my custom error message"}"#,
@@ -89,20 +83,14 @@ impl Command for ErrorGen {
                     Span::unknown(),
                 )),
             },
+            */
             Example {
-                description: "Create a more complex custom error",
-                example: r#"error make {
-        msg: "my custom error message"
-        label: {
-            text: "my custom label text"  # not mandatory unless $.label exists
-            start: 123  # not mandatory unless $.label.end is set
-            end: 456  # not mandatory unless $.label.start is set
-        }
-    }"#,
+                description: "Custom error highlighting bad value or expression",
+                example: r#"let bogon = "bogus value"; error gen "my custom error message" $bogon "this value is bogus""#,
                 result: Some(Value::error(
                     ShellError::GenericError(
                         "my custom error message".to_string(),
-                        "my custom label text".to_string(),
+                        "this value is bogus".to_string(),
                         Some(Span::new(123, 456)),
                         None,
                         Vec::new(),
@@ -110,38 +98,58 @@ impl Command for ErrorGen {
                     Span::unknown(),
                 )),
             },
-            Example {
-                description:
-                    "Create a custom error for a custom command that shows the span of the argument",
-                example: r#"def foo [x] {
-        let span = (metadata $x).span;
-        error make {
-            msg: "this is fishy"
-            label: {
-                text: "fish right here"
-                start: $span.start
-                end: $span.end
-            }
-        }
-    }"#,
-                result: None,
-            },
         ]
     }
 }
 
-fn make_error(
-    title: &Value,
-    blame: &Expression,
-    text: &Value,
-    _throw_span: Option<Span>,
-) -> Option<ShellError> {
-    match (title, blame, text) {
-        (Value::String { val: title_str, .. }, blame, Value::String { val: text_str, .. }) => {
+// provides span of expression as close to source of error as possible
+fn blamable_span(engine_state: &EngineState, stack: &mut Stack, e: &Expression) -> Span {
+    let ret_val = match &e.expr {
+        Expr::FullCellPath(cell) => {
+            match **cell {
+                FullCellPath {
+                    head:
+                        Expression {
+                            expr: Expr::Var(varid),
+                            span,
+                            ..
+                        },
+                    ..
+                } => {
+                    if let Ok(vi) = stack.get_var_info(varid, e.span) {
+                        //todo what happens here?
+                        if let Some(vspan) = vi.span {
+                            vspan
+                        } else {
+                            span
+                        }
+                    } else {
+                        e.span
+                    }
+                }
+                _ => e.span,
+            }
+        }
+        _ => {
+            if let Ok(v) = eval_expression(engine_state, stack, e) {
+                v.span()
+            } else {
+                e.span
+            }
+        }
+    };
+
+    //todo eprintln!("blamable expr: {:?}, returned span {:?}", e, ret_val);
+    ret_val
+}
+
+fn make_error(title: &Value, span: Span, text: &Value) -> Option<ShellError> {
+    match (title, span, text) {
+        (Value::String { val: title_str, .. }, span, Value::String { val: text_str, .. }) => {
             Some(ShellError::GenericError(
                 title_str.into(),
                 text_str.into(),
-                Some(blame.span),
+                Some(span),
                 None,
                 Vec::new(),
             ))
