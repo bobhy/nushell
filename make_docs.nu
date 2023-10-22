@@ -26,7 +26,7 @@ def get-extra-cmds [] {
     }
 }
 
-let extra_cmds = get-extra-cmds
+#let extra_cmds = get-extra-cmds
 
 # generate the YAML frontmatter of a command
 #
@@ -71,7 +71,7 @@ def command-frontmatter [commands_group, command_name] {
         | get category
         | each { |category|
             let usage = ($commands_list | where category == $category | get usage | str join (char newline))
-            $'($category | str snake-case): |(char newline)  ($usage)'
+            $'($category | str downcase): |(char newline)  ($usage)'
         }
         | str join (char newline)
     )
@@ -102,7 +102,7 @@ def command-doc [command] {
     let top = $"
 # <code>{{ $frontmatter.title }}</code> for ($command.category)
 
-<div class='command-title'>{{ $frontmatter.($command.category | str snake-case) }}</div>
+<div class='command-title'>{{ $frontmatter.($command.category | str downcase) }}</div>
 
 "
 
@@ -239,7 +239,7 @@ $"($example.description)
 
     let tips = if $command.name =~ '^dfr' {
         $'(char nl)**Tips:** Dataframe commands were not shipped in the official binaries by default, you have to build it with `--features=dataframe` flag(char nl)'
-    } else if $command.name in $extra_cmds {
+    } else if $command.name in (get-extra-cmds) {
         $'(char nl)**Tips:** Command `($command.name)` was not included in the official binaries by default, you have to build it with `--features=extra` flag(char nl)'
     } else { '' }
 
@@ -327,7 +327,7 @@ def generate-category [category] {
     let safe_name = ($category | safe-path)
     let doc_path = (['.', 'commands', 'categories', $'($safe_name).md'] | path join)
 
-$"# ($category | str title-case)
+$"# ($category | str capitalize)
 
 <script>
   import pages from '@temp/pages'
@@ -360,7 +360,7 @@ $"# ($category | str title-case)
 }
 
 
-def main [] {
+export def main [] {
     # Old commands are currently not deleted because some of them
     # are platform-specific (currently `exec`, `registry query`), and a single run of this script will not regenerate
     # all of them.
