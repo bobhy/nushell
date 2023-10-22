@@ -4,15 +4,15 @@ Strings in Nushell help to hold text data for later use. This can include file n
 and much more. Strings are so common that Nushell offers a couple ways to work with them, letting you pick what best
 matches your needs.
 
-## String formats at a glance
+## String literals at a glance
 
 | Format of string            | Example                 | Escapes                   | Notes                                                                  |
 | --------------------------- | ----------------------- | ------------------------- | ---------------------------------------------------------------------- |
-| Single-quoted string        | `'[^\n]+'`              | None                      | Cannot contain any `'`                                                 |
-| Backtick string             | <code>\`[^\n]+\`</code> | None                      | Cannot contain any backticks `                                         |
+| Single-quoted string        | `'[^\n]+'`              | None                      | Cannot contain single quotes `'`                                                 |
+| Backtick string             | <code>\`[^\n]+\`</code> | None                      | Cannot contain backticks `                                         |
 | Double-quoted string        | `"The\nEnd"`            | C-style backslash escapes | All backslashes must be escaped                                        |
 | Bare string                 | `ozymandias`            | None                      | Can only contain "word" characters; Cannot be used in command position |
-| Single-quoted interpolation | `$'Captain ($name)'`    | None                      | Cannot contain any `'` or unmatched `()`                               |
+| Single-quoted interpolation | `$'Captain ($name)'`    | None                      | Cannot contain single quote `'` or unmatched `()`                               |
 | Double-quoted interpolation | `$"Captain ($name)"`    | C-style backslash escapes | All backslashes and `()` must be escaped                               |
 
 ## Single-quoted strings
