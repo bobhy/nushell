@@ -26,7 +26,8 @@ impl Command for Pstr {
     }
 
     fn usage(&self) -> &str {
-        "Various commands for working with \"printable\" strings.  These can be indexed by counting visible print positions."
+        "Commands for working with strings where the lengths and character indices count grapheme clusters and skip ANSI control sequences.
+Thus the pstr index of a character is its offset when rendered on the screen (its \"print position\")"
     }
 
     fn extra_usage(&self) -> &str {

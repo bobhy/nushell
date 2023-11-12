@@ -1,4 +1,3 @@
-use crate::grapheme_flags;
 use nu_cmd_base::input_handler::{operate, CmdArgument};
 use nu_engine::CallExt;
 use nu_protocol::ast::Call;
@@ -6,11 +5,10 @@ use nu_protocol::ast::CellPath;
 use nu_protocol::engine::{Command, EngineState, Stack};
 use nu_protocol::Category;
 use nu_protocol::{Example, PipelineData, ShellError, Signature, Span, SyntaxShape, Type, Value};
-use unicode_segmentation::UnicodeSegmentation;
+use print_positions::print_positions;
 
 struct Arguments {
     cell_paths: Option<Vec<CellPath>>,
-    graphemes: bool,
 }
 
 impl CmdArgument for Arguments {
@@ -36,16 +34,6 @@ impl Command for SubCommand {
                 (Type::Record(vec![]), Type::Record(vec![])),
             ])
             .allow_variants_without_examples(true)
-            .switch(
-                "grapheme-clusters",
-                "count length using grapheme clusters (all visible chars have length 1)",
-                Some('g'),
-            )
-            .switch(
-                "utf-8-bytes",
-                "count length using UTF-8 bytes (default; all non-ASCII chars have length 2+)",
-                Some('b'),
-            )
             .rest(
                 "rest",
                 SyntaxShape::CellPath,
@@ -55,7 +43,7 @@ impl Command for SubCommand {
     }
 
     fn usage(&self) -> &str {
-        "Output the length of any strings in the pipeline."
+        "Output the rendered length of a string, counting extended grapheme cluster as one \"print position\" and skipping ANSI control sequences."
     }
 
     fn search_terms(&self) -> Vec<&str> {
@@ -72,7 +60,6 @@ impl Command for SubCommand {
         let cell_paths: Vec<CellPath> = call.rest(engine_state, stack, 0)?;
         let args = Arguments {
             cell_paths: (!cell_paths.is_empty()).then_some(cell_paths),
-            graphemes: grapheme_flags(call)?,
         };
         operate(action, args, input, call.head, engine_state.ctrlc.clone())
     }
@@ -80,37 +67,28 @@ impl Command for SubCommand {
     fn examples(&self) -> Vec<Example> {
         vec![
             Example {
-                description: "Return the lengths of a string",
+                description: "Return the length of a string",
                 example: "'hello' | pstr length",
                 result: Some(Value::test_int(5)),
             },
             Example {
-                description: "Count length using grapheme clusters",
-                example: "'🇯🇵ほげ ふが ぴよ' | pstr length -g",
+                description:
+                    "Return the rendered length of a string ignoring ANSI control sequences",
+                example: "$\"plain(ansi cyan)cyan(ansi reset)\" | pstr length",
                 result: Some(Value::test_int(9)),
             },
             Example {
-                description: "Return the lengths of multiple strings",
-                example: "['hi' 'there'] | pstr length",
-                result: Some(Value::List {
-                    vals: vec![Value::test_int(2), Value::test_int(5)],
-                    span: Span::test_data(),
-                }),
+                description: "Return the rendered length of a string counting a grapheme cluster as one \"print position\"",
+                example: "'こんにちは世界' | pstr length",
+                result: Some(Value::test_int(7)),
             },
         ]
     }
 }
 
-fn action(input: &Value, arg: &Arguments, head: Span) -> Value {
+fn action(input: &Value, _arg: &Arguments, head: Span) -> Value {
     match input {
-        Value::String { val, .. } => Value::int(
-            if arg.graphemes {
-                val.graphemes(true).count()
-            } else {
-                val.len()
-            } as i64,
-            head,
-        ),
+        Value::String { val, .. } => Value::int(print_positions(val).count() as i64, head),
         Value::Error { .. } => input.clone(),
         _ => Value::Error {
             error: Box::new(ShellError::OnlySupportsThisInputType {
@@ -126,22 +104,6 @@ fn action(input: &Value, arg: &Arguments, head: Span) -> Value {
 #[cfg(test)]
 mod test {
     use super::*;
-
-    #[test]
-    fn use_utf8_bytes() {
-        let word = Value::String {
-            val: String::from("🇯🇵ほげ ふが ぴよ"),
-            span: Span::test_data(),
-        };
-
-        let options = Arguments {
-            cell_paths: None,
-            graphemes: false,
-        };
-
-        let actual = action(&word, &options, Span::test_data());
-        assert_eq!(actual, Value::test_int(28));
-    }
 
     #[test]
     fn test_examples() {

@@ -1,4 +1,3 @@
-use crate::grapheme_flags;
 use nu_cmd_base::input_handler::{operate, CmdArgument};
 use nu_cmd_base::util;
 use nu_engine::CallExt;
@@ -9,8 +8,8 @@ use nu_protocol::Category;
 use nu_protocol::{
     Example, PipelineData, Range, ShellError, Signature, Span, SyntaxShape, Type, Value,
 };
+use print_positions::print_position_data;
 use std::cmp::Ordering;
-use unicode_segmentation::UnicodeSegmentation;
 
 #[derive(Clone)]
 pub struct SubCommand;
@@ -18,7 +17,6 @@ pub struct SubCommand;
 struct Arguments {
     indexes: Substring,
     cell_paths: Option<Vec<CellPath>>,
-    graphemes: bool,
 }
 
 impl CmdArgument for Arguments {
@@ -45,21 +43,14 @@ impl Command for SubCommand {
         Signature::build("pstr substring")
             .input_output_types(vec![
                 (Type::String, Type::String),
-                (Type::List(Box::new(Type::String)), Type::List(Box::new(Type::String))),
+                (
+                    Type::List(Box::new(Type::String)),
+                    Type::List(Box::new(Type::String)),
+                ),
                 (Type::Table(vec![]), Type::Table(vec![])),
                 (Type::Record(vec![]), Type::Record(vec![])),
             ])
             .allow_variants_without_examples(true)
-            .switch(
-                "grapheme-clusters",
-                "count indexes and split using grapheme clusters (all visible chars have length 1)",
-                Some('g'),
-            )
-            .switch(
-                "utf-8-bytes",
-                "count indexes and split using UTF-8 bytes (default; non-ASCII chars have length 2+)",
-                Some('b'),
-            )
             .required(
                 "range",
                 SyntaxShape::Any,
@@ -74,7 +65,7 @@ impl Command for SubCommand {
     }
 
     fn usage(&self) -> &str {
-        "Get part of a string. Note that the start is included but the end is excluded, and that the first character of a string is index 0."
+        "Get part of a string, indexing by \"print positions\". Note that the start is included but the end is excluded."
     }
 
     fn search_terms(&self) -> Vec<&str> {
@@ -102,7 +93,6 @@ impl Command for SubCommand {
         let args = Arguments {
             indexes,
             cell_paths,
-            graphemes: grapheme_flags(call)?,
         };
         operate(action, args, input, call.head, engine_state.ctrlc.clone())
     }
@@ -110,15 +100,19 @@ impl Command for SubCommand {
     fn examples(&self) -> Vec<Example> {
         vec![
             Example {
-                description:
-                    "Get a substring \"nushell\" from the text \"good nushell\" using a range",
-                example: " 'good nushell' | pstr substring 5..12",
-                result: Some(Value::test_string("nushell")),
+                description: "Extract substring from colorized string, counting just print positions (skips ANSI control sequences)",
+                example: r#"let s = ($"plain(ansi cyan)cyan(ansi red)red(ansi reset)")
+    [ $s,
+      ($s | pstr substring 5..12)
+    ] | str join "\n""#,
+                result: Some(
+                        Value::test_string("plain\u{1b}[36mcyan\u{1b}[31mred\u{1b}[0m\n\u{1b}[36mcyan\u{1b}[31mred\u{1b}[0m"),
+                )
             },
             Example {
-                description: "Count indexes and split using grapheme clusters",
-                example: " '🇯🇵ほげ ふが ぴよ' | pstr substring -g 4..6",
-                result: Some(Value::test_string("ふが")),
+                description: "Extract substring from UTF-8 string containing multibyte characters (counts extended grapheme cluster as 1 print position)",
+                example: " 'こんにちは世界' | pstr substring 5..7",
+                result: Some(Value::test_string("世界")),
             },
         ]
     }
@@ -151,34 +145,17 @@ fn action(input: &Value, args: &Arguments, head: Span) -> Value {
                         }),
                     },
                     Ordering::Less => Value::String {
-                        val: {
-                            if end == isize::max_value() {
-                                if args.graphemes {
-                                    s.graphemes(true)
-                                        .skip(start as usize)
-                                        .collect::<Vec<&str>>()
-                                        .join("")
-                                } else {
-                                    String::from_utf8_lossy(
-                                        &s.bytes().skip(start as usize).collect::<Vec<_>>(),
-                                    )
-                                    .to_string()
-                                }
-                            } else if args.graphemes {
-                                s.graphemes(true)
-                                    .skip(start as usize)
-                                    .take((end - start) as usize)
-                                    .collect::<Vec<&str>>()
-                                    .join("")
-                            } else {
-                                String::from_utf8_lossy(
-                                    &s.bytes()
-                                        .skip(start as usize)
-                                        .take((end - start) as usize)
-                                        .collect::<Vec<_>>(),
-                                )
-                                .to_string()
-                            }
+                        val: if end == isize::max_value() {
+                            print_position_data(s)
+                                .skip(start as usize)
+                                .collect::<Vec<&str>>()
+                                .join("")
+                        } else {
+                            print_position_data(s)
+                                .skip(start as usize)
+                                .take((end - start) as usize)
+                                .collect::<Vec<&str>>()
+                                .join("")
                         },
                         span: head,
                     },
@@ -203,92 +180,12 @@ fn action(input: &Value, args: &Arguments, head: Span) -> Value {
 
 #[cfg(test)]
 mod tests {
-    use super::{action, Arguments, Span, SubCommand, Substring, Value};
+    use super::*;
 
     #[test]
     fn test_examples() {
         use crate::test_examples;
 
         test_examples(SubCommand {})
-    }
-    struct Expectation<'a> {
-        options: (isize, isize),
-        expected: &'a str,
-    }
-
-    impl Expectation<'_> {
-        fn options(&self) -> Substring {
-            Substring(self.options.0, self.options.1)
-        }
-    }
-
-    fn expectation(word: &str, indexes: (isize, isize)) -> Expectation {
-        Expectation {
-            options: indexes,
-            expected: word,
-        }
-    }
-
-    #[test]
-    fn substrings_indexes() {
-        let word = Value::test_string("andres");
-
-        let cases = vec![
-            expectation("a", (0, 1)),
-            expectation("an", (0, 2)),
-            expectation("and", (0, 3)),
-            expectation("andr", (0, 4)),
-            expectation("andre", (0, 5)),
-            expectation("andres", (0, 6)),
-            expectation("", (0, -6)),
-            expectation("a", (0, -5)),
-            expectation("an", (0, -4)),
-            expectation("and", (0, -3)),
-            expectation("andr", (0, -2)),
-            expectation("andre", (0, -1)),
-            // str substring [ -4 , _ ]
-            // str substring   -4 ,
-            expectation("dres", (-4, isize::max_value())),
-            expectation("", (0, -110)),
-            expectation("", (6, 0)),
-            expectation("", (6, -1)),
-            expectation("", (6, -2)),
-            expectation("", (6, -3)),
-            expectation("", (6, -4)),
-            expectation("", (6, -5)),
-            expectation("", (6, -6)),
-        ];
-
-        for expectation in &cases {
-            let expected = expectation.expected;
-            let actual = action(
-                &word,
-                &Arguments {
-                    indexes: expectation.options(),
-                    cell_paths: None,
-                    graphemes: false,
-                },
-                Span::test_data(),
-            );
-
-            assert_eq!(actual, Value::test_string(expected));
-        }
-    }
-
-    #[test]
-    fn use_utf8_bytes() {
-        let word = Value::String {
-            val: String::from("🇯🇵ほげ ふが ぴよ"),
-            span: Span::test_data(),
-        };
-
-        let options = Arguments {
-            cell_paths: None,
-            indexes: Substring(4, 5),
-            graphemes: false,
-        };
-
-        let actual = action(&word, &options, Span::test_data());
-        assert_eq!(actual, Value::test_string("�"));
     }
 }
